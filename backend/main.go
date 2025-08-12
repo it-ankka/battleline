@@ -2,37 +2,13 @@ package main
 
 import (
 	"fmt"
-	. "github.com/it-ankka/battleline/cards"
+
+	. "github.com/it-ankka/battleline/game"
 )
 
-func CreateStartingDeck() Deck {
-	var deck = Deck{}
-	for _, s := range Suits {
-		for i := range 10 {
-			deck = append(deck, Card{
-				Suit:  s,
-				Value: i + 1,
-			})
-		}
-	}
-	return deck
-}
-
-type Lane struct {
-	cards   Deck
-	claimed int
-}
-
-type Lanes [9][2]Lane
-
-type PlayerState struct {
-	Hand Deck `json:"hand"`
-}
-
 func main() {
-	var deck = CreateStartingDeck()
-	deck = deck.Shuffle()
-	for _, c := range deck {
-		fmt.Printf("%s\n", c)
-	}
+	g := NewGameState()
+	fmt.Printf("Player 1 Hand: %s\n", g.PlayerHands[0].SortByRank().String())
+	fmt.Printf("Player 2 Hand: %s\n", g.PlayerHands[1].SortByRank().String())
+	fmt.Printf("\nDrawDeck: %s\n", g.DrawDeck.SortByRank().String())
 }
