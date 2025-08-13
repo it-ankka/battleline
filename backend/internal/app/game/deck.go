@@ -18,6 +18,12 @@ func (deck Deck) String() string {
 	return s
 }
 
+func (deck Deck) Copy() Deck {
+	d := make([]Card, len(deck))
+	copy(d, deck)
+	return d
+}
+
 func (deck Deck) Pop() (Deck, Card) {
 	c := deck[len(deck)-1]
 
@@ -28,8 +34,7 @@ func (deck Deck) Pop() (Deck, Card) {
 }
 
 func (deck Deck) Shuffle() Deck {
-	d := make([]Card, len(deck))
-	copy(d, deck)
+	d := deck.Copy()
 
 	for i := len(d) - 1; i > 0; i-- {
 		j := rand.IntN(i)
@@ -39,8 +44,7 @@ func (deck Deck) Shuffle() Deck {
 }
 
 func (deck Deck) SortBySuit() Deck {
-	d := make([]Card, len(deck))
-	copy(d, deck)
+	d := deck.Copy()
 
 	sort.Slice(d, func(i, j int) bool {
 		return (d[i].SuitSortingValue() < d[j].SuitSortingValue())
@@ -49,8 +53,7 @@ func (deck Deck) SortBySuit() Deck {
 }
 
 func (deck Deck) SortByRank() Deck {
-	d := make([]Card, len(deck))
-	copy(d, deck)
+	d := deck.Copy()
 
 	sort.Slice(d, func(i, j int) bool {
 		return (d[i].Value < d[j].Value)

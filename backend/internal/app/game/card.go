@@ -12,17 +12,17 @@ const (
 	SuitGreen
 	SuitBlue
 	SuitPurple
-	SuitBlack
+	SuitYellow
 )
 
-var Suits = []Suit{SuitRed, SuitGreen, SuitBlue, SuitPurple, SuitBlack}
+var Suits = []Suit{SuitRed, SuitGreen, SuitBlue, SuitPurple, SuitYellow}
 
 var suitName = map[Suit]string{
 	SuitRed:    "red",
 	SuitGreen:  "green",
 	SuitBlue:   "blue",
 	SuitPurple: "purple",
-	SuitBlack:  "black",
+	SuitYellow: "yellow",
 }
 
 func (s Suit) String() string {
@@ -35,7 +35,7 @@ type Card struct {
 }
 
 func (c Card) String() string {
-	return fmt.Sprintf("%s %d", strings.ToUpper(c.Suit.String()), c.Value)
+	return fmt.Sprintf("%s %d", strings.ToUpper(c.Suit.String())[:1], c.Value)
 }
 
 func (c Card) SuitSortingValue() int {

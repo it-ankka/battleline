@@ -3,18 +3,18 @@ package game
 import "math/rand/v2"
 
 type GameState struct {
-	DrawDeck     Deck      `json:"drawDeck"`
-	ActivePlayer int       `json:"activePlayer"`
-	Lanes        GameLanes `json:"lanes"`
-	PlayerHands  [2]Deck   `json:"players"`
+	DrawDeck     Deck
+	ActivePlayer int
+	Lanes        GameLanes
+	PlayerHands  [2]Deck
 }
 
 type PrivateGameState struct {
 	ActivePlayer     int       `json:"activePlayer"`
+	Lanes            GameLanes `json:"lanes"`
+	PlayerHand       Deck      `json:"playerState"`
 	DrawDeckSize     int       `json:"drawDeckSize"`
 	OpponentHandSize int       `json:"opponentHandSize"`
-	PlayerHand       Deck      `json:"playerState"`
-	Lanes            GameLanes `json:"lanes"`
 }
 
 func NewGameState() GameState {
@@ -35,4 +35,21 @@ func NewGameState() GameState {
 	}
 
 	return g
+}
+
+func (gs *GameState) GetPrivateGameState(playerIdx int) *PrivateGameState {
+	var opponentIdx = 0
+	if playerIdx == 0 {
+		opponentIdx = 1
+	} else {
+		playerIdx = 1
+	}
+
+	return &PrivateGameState{
+		ActivePlayer:     gs.ActivePlayer,
+		Lanes:            gs.Lanes,
+		PlayerHand:       gs.PlayerHands[playerIdx],
+		DrawDeckSize:     len(gs.DrawDeck),
+		OpponentHandSize: len(gs.PlayerHands[opponentIdx]),
+	}
 }

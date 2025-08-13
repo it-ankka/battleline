@@ -18,17 +18,17 @@ const (
 )
 
 type PlayerInfo struct {
-	ID    string
-	Nick  string
-	Key   string
-	Ready bool
+	ID       string
+	Key      string
+	Nickname string `json:"nickname"`
+	Ready    bool   `json:"ready"`
 }
 
 type GameSession struct {
-	ID        string
-	Players   [2]*PlayerInfo
-	Status    SessionStatus
-	CreatedAt time.Time
+	ID        string         `json:"id"`
+	Players   [2]*PlayerInfo `json:"players"`
+	Status    SessionStatus  `json:"status"`
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 func generateID(length int) (string, error) {
@@ -60,10 +60,10 @@ func NewPlayerInfo() (*PlayerInfo, error) {
 	}
 
 	p := &PlayerInfo{
-		ID:    playerId,
-		Nick:  "Player 1",
-		Key:   playerKey,
-		Ready: false,
+		ID:       playerId,
+		Key:      playerKey,
+		Nickname: "Player",
+		Ready:    false,
 	}
 
 	return p, nil
@@ -93,6 +93,7 @@ func NewGameSession() (*GameSession, error) {
 }
 
 func (gs *GameSession) ConnectPlayer() (*PlayerInfo, error) {
+	// If a second player has not joined
 	if gs.Players[1] == nil {
 		p, err := NewPlayerInfo()
 		if err != nil {

@@ -50,7 +50,6 @@ func JoinGameHandler(a *AppContext) http.HandlerFunc {
 			return
 		}
 		addPlayerCookies(r, playerInfo.ID, playerInfo.Key)
-
 	}
 }
 
