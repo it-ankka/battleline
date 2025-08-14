@@ -3,10 +3,10 @@ package game
 type Formation int
 
 const (
-	FormationHost Formation = iota
-	FormationSkirmishLine
-	FormationBatallionOrder
-	FormationPhalanx
+	FormationFray Formation = iota
+	FormationSkirmish
+	FormationColumn
+	FormationSquare
 	FormationWedge
 )
 
@@ -36,5 +36,5 @@ func (d Deck) IsAllSameSuit() bool {
 // }
 
 func (d *Deck) GetFormation() Formation {
-	return FormationHost
+	return FormationFray
 }
