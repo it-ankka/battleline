@@ -3,7 +3,8 @@ package game
 type Formation int
 
 const (
-	FormationFray Formation = iota
+	FormationNone Formation = iota
+	FormationFray
 	FormationSkirmish
 	FormationColumn
 	FormationSquare
@@ -16,25 +17,45 @@ func (d Deck) IsAllSameSuit() bool {
 		if suit != c.Suit {
 			return false
 		}
-		suit = c.Suit
 	}
 	return true
 }
 
-// TODO
-// func (d Deck) IsRun() bool {
-// 	sortedDeck := d.SortByRank()
+func (d Deck) IsAllSameValue() bool {
+	val := d[0].Value
+	for _, c := range d {
+		if val != c.Value {
+			return false
+		}
+	}
+	return true
+}
 
-// 	val := sortedDeck[0].Value
-// 	for _, c := range d {
-// 		if (suit != c.suit) {
-// 			return false
-// 		}
-// 		suit = c.suit
-// 	}
-// 	return true
-// }
+func (d Deck) IsStraight() bool {
+	sortedDeck := d.SortByRank()
 
-func (d *Deck) GetFormation() Formation {
+	val := sortedDeck[0].Value
+	for _, c := range sortedDeck[1:] {
+		if val != c.Value-1 {
+			return false
+		}
+		val = c.Value
+	}
+	return true
+}
+
+func (d Deck) GetFormation() Formation {
+	sameSuit, sameValue, straight := d.IsAllSameSuit(), d.IsAllSameValue(), d.IsStraight()
+	if len(d) < 3 {
+		return FormationNone
+	} else if sameSuit && straight {
+		return FormationWedge
+	} else if sameValue {
+		return FormationSquare
+	} else if sameSuit {
+		return FormationColumn
+	} else if straight {
+		return FormationSkirmish
+	}
 	return FormationFray
 }
