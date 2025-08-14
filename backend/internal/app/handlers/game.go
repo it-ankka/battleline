@@ -29,6 +29,7 @@ func addPlayerCookies(r *http.Request, playerId string, playerKey string) {
 	})
 }
 
+// TODO Return some actually useful data
 func JoinGameHandler(a *AppContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gameId := r.PathValue("gameId")
@@ -53,6 +54,7 @@ func JoinGameHandler(a *AppContext) http.HandlerFunc {
 	}
 }
 
+// TODO Return some actually useful data
 func CreateGameHandler(a *AppContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		game, err := a.Store.CreateGame()
