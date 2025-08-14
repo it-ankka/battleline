@@ -13,9 +13,10 @@ const (
 	SuitBlue
 	SuitPurple
 	SuitYellow
+	SuitOrange
 )
 
-var Suits = []Suit{SuitRed, SuitGreen, SuitBlue, SuitPurple, SuitYellow}
+var Suits = []Suit{SuitRed, SuitGreen, SuitBlue, SuitPurple, SuitYellow, SuitOrange}
 
 var suitName = map[Suit]string{
 	SuitRed:    "red",
@@ -23,6 +24,7 @@ var suitName = map[Suit]string{
 	SuitBlue:   "blue",
 	SuitPurple: "purple",
 	SuitYellow: "yellow",
+	SuitOrange: "orange",
 }
 
 func (s Suit) String() string {
