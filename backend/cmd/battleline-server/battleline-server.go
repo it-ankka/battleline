@@ -17,5 +17,10 @@ func main() {
 	r := router.NewAppRouter(a)
 
 	logger.Printf("Server started. Listening on %s\n", address)
-	http.ListenAndServe(address, middleware.Logger(r, logger))
+
+	corsMiddleware := func(h http.Handler) http.Handler { return middleware.SetAccessControlAllowOrigin(h, "*") }
+	loggerMiddleware := func(h http.Handler) http.Handler { return middleware.Logger(h, logger) }
+	stack := middleware.CreateStack(loggerMiddleware, corsMiddleware)
+
+	http.ListenAndServe(address, stack(r))
 }

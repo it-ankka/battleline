@@ -7,6 +7,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/coder/websocket"
 )
 
 type SessionStatus int
@@ -18,10 +20,11 @@ const (
 )
 
 type PlayerInfo struct {
-	ID       string
-	Key      string
-	Nickname string `json:"nickname"`
-	Ready    bool   `json:"ready"`
+	ID         string
+	Key        string
+	Connection websocket.Conn
+	Nickname   string `json:"nickname"`
+	Ready      bool   `json:"ready"`
 }
 
 type GameSession struct {
@@ -92,7 +95,7 @@ func NewGameSession() (*GameSession, error) {
 	return s, nil
 }
 
-func (gs *GameSession) ConnectPlayer() (*PlayerInfo, error) {
+func (gs *GameSession) AddPlayer() (*PlayerInfo, error) {
 	// If a second player has not joined
 	if gs.Players[1] == nil {
 		p, err := NewPlayerInfo()
@@ -103,4 +106,18 @@ func (gs *GameSession) ConnectPlayer() (*PlayerInfo, error) {
 		return p, nil
 	}
 	return nil, errors.New("Game is full.")
+}
+
+// TODO
+func (gs *GameSession) ConnectPlayer(playerId string, playerKey string) {
+
+}
+
+func (gs *GameSession) CheckPlayerGameAuthorization(playerId string, playerKey string) error {
+	for _, p := range gs.Players {
+		if p.ID == playerId && p.Key == playerKey {
+			return nil
+		}
+	}
+	return errors.New("Player not authorized to connect to game.")
 }
