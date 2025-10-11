@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Battleline</title>
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body>
+    <div id="root">
+      <div id="message-log"></div>
+      <div>
+        <form id="create-game-form">
+          <button type="submit">Create game</button>
+        </form>
+        <hr />
+        <form id="join-game-form">
+          <input
+            name="gameId"
+            id="game-id-input"
+            type="text"
+            placeholder="Game ID"
+            required
+          />
+          <button type="submit">Join game</button>
+        </form>
+      </div>
+    </div>
+    <script type="text/javascript" src="/index.js"></script>
+  </body>
+</html>

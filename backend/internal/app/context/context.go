@@ -7,15 +7,19 @@ import (
 )
 
 type AppContext struct {
-	// Fs     fs.FS
-	Logger *log.Logger
-	Store  *GameStore
+	// Fs       fs.FS
+	Logger      *log.Logger
+	GameManager *GameManager
 }
 
 func NewAppContext(logger *log.Logger) *AppContext {
 	return &AppContext{
-		// Fs:     filesystem,
-		Logger: logger,
-		Store:  NewGameStore(),
+		// Fs:       filesystem,
+		Logger:      logger,
+		GameManager: NewGameManager(),
 	}
+}
+
+func Run() {
+
 }

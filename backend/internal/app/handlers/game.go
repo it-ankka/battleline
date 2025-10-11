@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 	. "github.com/it-ankka/battleline/internal/app/context"
 )
 
@@ -15,8 +14,8 @@ const (
 	PlayerKeyCookieName = "battlelinePlayerKey"
 )
 
-func addPlayerCookies(r *http.Request, playerId string, playerKey string) {
-	r.AddCookie(&http.Cookie{
+func addPlayerCookies(w http.ResponseWriter, playerId string, playerKey string) {
+	http.SetCookie(w, &http.Cookie{
 		Name:     PlayerIdCookieName,
 		Value:    playerId,
 		Path:     "/",
@@ -26,7 +25,7 @@ func addPlayerCookies(r *http.Request, playerId string, playerKey string) {
 		Secure:   false,
 	})
 
-	r.AddCookie(&http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:     PlayerKeyCookieName,
 		Value:    playerKey,
 		Path:     "/",
@@ -53,7 +52,7 @@ func getPlayerCookies(r *http.Request) (playerId string, playerKey string) {
 func JoinGameHandler(a *AppContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gameId := r.PathValue("gameId")
-		game, exists := a.Store.GetGame(gameId)
+		game, exists := a.GameManager.GetGame(gameId)
 		if !exists {
 			http.Error(w, "Game not found with ID "+gameId, 404)
 			return
@@ -65,46 +64,46 @@ func JoinGameHandler(a *AppContext) http.HandlerFunc {
 			return
 		}
 		a.Logger.Printf("PLAYER %s JOINED GAME %s", playerInfo.ID, game.ID)
-		addPlayerCookies(r, playerInfo.ID, playerInfo.Key)
+		addPlayerCookies(w, playerInfo.ID, playerInfo.Key)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(game)
 	}
 }
 
 // TODO Return some actually useful data
 func CreateGameHandler(a *AppContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		game, err := a.Store.CreateGame()
+		game, err := a.GameManager.CreateGame()
 		if err != nil {
 			a.Logger.Print(err.Error())
 			http.Error(w, "Failed to create game", 500)
 		}
 		a.Logger.Printf("NEW GAME CREATED WITH ID %s", game.ID)
-		addPlayerCookies(r, game.Players[0].ID, game.Players[0].Key)
+		addPlayerCookies(w, game.Players[0].ID, game.Players[0].Key)
 
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(game)
 	}
 }
 
-// PROCESS:
-// 1.Player sends request to open connection to game
-// 2. Check that player is authorized to connect to game
-// 3. Upgrade to websockets
-// 4. Add connection to gameSession
-// 5. Send game state updates in a seperate thread (goroutine)
-// 6. Wait for client updates
-
 // TODO Check user id and key and process moves and send board status updates
-func GameWebsocketHandler(a *AppContext) http.HandlerFunc {
+func ConnectHandler(a *AppContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gameId := r.PathValue("gameId")
-		game, exists := a.Store.GetGame(gameId)
+		game, exists := a.GameManager.GetGame(gameId)
 		if !exists {
 			http.Error(w, "Game not found with ID "+gameId, 404)
 			return
 		}
 
 		playerId, playerKey := getPlayerCookies(r)
-		err := game.CheckPlayerGameAuthorization(playerId, playerKey)
+		player, err := game.GetPlayer(playerId, playerKey)
 		if err != nil {
+			a.Logger.Printf("Player with id %s not authorized to connect to game", playerId)
 			http.Error(w, "Player not authorized to connect to game", http.StatusUnauthorized)
+			return
 		}
 
 		// Upgrade to websockets
@@ -112,21 +111,16 @@ func GameWebsocketHandler(a *AppContext) http.HandlerFunc {
 		if err != nil {
 			a.Logger.Printf("WebSocket Error %s", err.Error())
 			http.Error(w, "Unable to create WebSocket connection.", 500)
+			return
 		}
 		defer c.CloseNow()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-		var v any
-		// Keep reading data until connection closed
-		for true {
-			err = wsjson.Read(ctx, c, &v)
-			if err != nil {
-				a.Logger.Printf("Error reading data: %s", err.Error())
-				c.Close(websocket.StatusInternalError, "Error reading data")
-			}
-			a.Logger.Printf("received: %v", v)
-			break
+		if !game.IsStarted() {
+			go game.StartUpdateTick(time.Second * 1)
+			go game.Listen()
 		}
+
+		player.HandleConnection(c, game)
+
 	}
 }
