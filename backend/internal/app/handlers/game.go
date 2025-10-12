@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -63,7 +64,7 @@ func JoinGameHandler(a *AppContext) http.HandlerFunc {
 			http.Error(w, "Unable to connect to game", 500)
 			return
 		}
-		a.Logger.Printf("PLAYER %s JOINED GAME %s", playerInfo.ID, game.ID)
+		slog.Info("Player joined game", slog.String("GameId", game.ID), slog.String("playerId", playerInfo.ID))
 		addPlayerCookies(w, playerInfo.ID, playerInfo.Key)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -76,10 +77,10 @@ func CreateGameHandler(a *AppContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		game, err := a.GameManager.CreateGame()
 		if err != nil {
-			a.Logger.Print(err.Error())
+			slog.Error("Game creation failed", slog.Any("error", err.Error()))
 			http.Error(w, "Failed to create game", 500)
 		}
-		a.Logger.Printf("NEW GAME CREATED WITH ID %s", game.ID)
+		slog.Info("Game Created", slog.String("gameId", game.ID))
 		addPlayerCookies(w, game.Players[0].ID, game.Players[0].Key)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -101,7 +102,7 @@ func ConnectHandler(a *AppContext) http.HandlerFunc {
 		playerId, playerKey := getPlayerCookies(r)
 		player, err := game.GetPlayer(playerId, playerKey)
 		if err != nil {
-			a.Logger.Printf("Player with id %s not authorized to connect to game", playerId)
+			slog.Error("Player connection not authorized", slog.String("playerId", playerId))
 			http.Error(w, "Player not authorized to connect to game", http.StatusUnauthorized)
 			return
 		}
@@ -109,7 +110,7 @@ func ConnectHandler(a *AppContext) http.HandlerFunc {
 		// Upgrade to websockets
 		c, err := websocket.Accept(w, r, nil)
 		if err != nil {
-			a.Logger.Printf("WebSocket Error %s", err.Error())
+			slog.Error("Websocket Error", slog.Any("error", err.Error()), slog.String("playerId", playerId), slog.String("gameId", gameId))
 			http.Error(w, "Unable to create WebSocket connection.", 500)
 			return
 		}
