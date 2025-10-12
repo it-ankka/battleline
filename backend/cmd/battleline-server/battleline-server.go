@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	. "github.com/it-ankka/battleline/internal/app/context"
 	"github.com/it-ankka/battleline/internal/app/middleware"
@@ -15,14 +17,30 @@ func main() {
 
 	// Add contextual information here
 	defaultAttrs := []slog.Attr{}
+
+	// Use short filename
 	handlerOptions := slog.HandlerOptions{
 		AddSource: true,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.SourceKey {
+				source, _ := a.Value.Any().(*slog.Source)
+				if source != nil {
+					source.File = filepath.Base(source.File)
+				}
+			}
+			return a
+		},
 	}
 	// Debug mode enabled
-	if _, debug := os.LookupEnv("DEBUG"); debug {
+	if mode, _ := os.LookupEnv("MODE"); strings.ToLower(mode) == "debug" {
 		handlerOptions.Level = slog.LevelDebug
 	}
-	slogHandler := slog.NewJSONHandler(os.Stdout, &handlerOptions).WithAttrs(defaultAttrs)
+	var slogHandler slog.Handler
+	if logHandler, _ := os.LookupEnv("LOG_FORMAT"); strings.ToLower(logHandler) == "json" {
+		slogHandler = slog.NewJSONHandler(os.Stdout, &handlerOptions).WithAttrs(defaultAttrs)
+	} else {
+		slogHandler = slog.NewTextHandler(os.Stdout, &handlerOptions).WithAttrs(defaultAttrs)
+	}
 	logger := slog.New(slogHandler)
 	slog.SetDefault(logger)
 
