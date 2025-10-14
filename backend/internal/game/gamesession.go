@@ -23,8 +23,6 @@ const (
 	SessionEnded
 )
 
-type SessionUpdateType int
-
 type SessionPlayer struct {
 	ID         string
 	Key        string
@@ -33,9 +31,14 @@ type SessionPlayer struct {
 	send       chan SessionMessage
 }
 
+// Possible player actions:
+// "move": The client makes a move in the game
+// "message" Player sends a message in the game chat
+// "updateinfo": Player changes their nickname
+// "close": Player closes the connection
 type PlayerMessage struct {
-	MessageType string `json:"type"`
-	Data        any    `json:"data"`
+	ActionType string `json:"type"`
+	Data       any    `json:"data"`
 }
 
 type SessionMessage struct {
@@ -221,7 +224,7 @@ func (game *GameSession) Listen() {
 		select {
 
 		case message := <-game.messages:
-			if message.MessageType == "update" {
+			if message.ActionType == "update" {
 				fmt.Printf("UPDATE MESSAGE RECEIVED FROM PLAYER")
 				game.UpdatePlayers()
 			}

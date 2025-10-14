@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	. "github.com/it-ankka/battleline/internal/app/context"
+	. "github.com/it-ankka/battleline/internal/gameserver"
 )
 
 const (
@@ -50,10 +50,10 @@ func getPlayerCookies(r *http.Request) (playerId string, playerKey string) {
 }
 
 // TODO Return some actually useful data
-func JoinGameHandler(a *AppContext) http.HandlerFunc {
+func JoinGameHandler(s *GameServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gameId := r.PathValue("gameId")
-		game, exists := a.GameManager.GetGame(gameId)
+		game, exists := s.GameManager.GetGame(gameId)
 		if !exists {
 			http.Error(w, "Game not found with ID "+gameId, 404)
 			return
@@ -73,7 +73,7 @@ func JoinGameHandler(a *AppContext) http.HandlerFunc {
 }
 
 // TODO Return some actually useful data
-func CreateGameHandler(a *AppContext) http.HandlerFunc {
+func CreateGameHandler(a *GameServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		game, err := a.GameManager.CreateGame()
 		if err != nil {
@@ -90,10 +90,10 @@ func CreateGameHandler(a *AppContext) http.HandlerFunc {
 }
 
 // TODO Check user id and key and process moves and send board status updates
-func ConnectHandler(a *AppContext) http.HandlerFunc {
+func ConnectHandler(s *GameServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gameId := r.PathValue("gameId")
-		game, exists := a.GameManager.GetGame(gameId)
+		game, exists := s.GameManager.GetGame(gameId)
 		if !exists {
 			http.Error(w, "Game not found with ID "+gameId, 404)
 			return

@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	. "github.com/it-ankka/battleline/internal/app/context"
-	"github.com/it-ankka/battleline/internal/app/middleware"
-	"github.com/it-ankka/battleline/internal/app/router"
+	. "github.com/it-ankka/battleline/internal/gameserver"
+	"github.com/it-ankka/battleline/internal/middleware"
+	"github.com/it-ankka/battleline/internal/router"
 )
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 	logger := slog.New(slogHandler)
 	slog.SetDefault(logger)
 
-	a := NewAppContext()
+	a := NewGameServer()
 	r := router.NewAppRouter(a)
 
 	slog.Info("Server started.", slog.String("address", address))
