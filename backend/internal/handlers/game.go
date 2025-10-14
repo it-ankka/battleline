@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	PlayerIdCookieName  = "battlelinePlayerId"
-	PlayerKeyCookieName = "battlelinePlayerKey"
+	ClientIdCookieName  = "battlelineClientId"
+	ClientKeyCookieName = "battlelineClientKey"
 )
 
-func addPlayerCookies(w http.ResponseWriter, playerId string, playerKey string) {
+func addClientCookies(w http.ResponseWriter, clientId string, clientKey string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     PlayerIdCookieName,
-		Value:    playerId,
+		Name:     ClientIdCookieName,
+		Value:    clientId,
 		Path:     "/",
 		Domain:   "localhost",
 		Expires:  time.Now().Add(5 * time.Hour),
@@ -27,8 +27,8 @@ func addPlayerCookies(w http.ResponseWriter, playerId string, playerKey string) 
 	})
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     PlayerKeyCookieName,
-		Value:    playerKey,
+		Name:     ClientKeyCookieName,
+		Value:    clientKey,
 		Path:     "/",
 		Domain:   "localhost",
 		Expires:  time.Now().Add(5 * time.Hour),
@@ -37,16 +37,16 @@ func addPlayerCookies(w http.ResponseWriter, playerId string, playerKey string) 
 	})
 }
 
-func getPlayerCookies(r *http.Request) (playerId string, playerKey string) {
-	playerIdCookie, err := r.Cookie(PlayerIdCookieName)
+func getClientCookies(r *http.Request) (clientId string, clientKey string) {
+	clientIdCookie, err := r.Cookie(ClientIdCookieName)
 	if err == nil {
-		playerId = playerIdCookie.Value
+		clientId = clientIdCookie.Value
 	}
-	playerKeyCookie, err := r.Cookie(PlayerKeyCookieName)
+	clientKeyCookie, err := r.Cookie(ClientKeyCookieName)
 	if err == nil {
-		playerKey = playerKeyCookie.Value
+		clientKey = clientKeyCookie.Value
 	}
-	return playerId, playerKey
+	return clientId, clientKey
 }
 
 // TODO Return some actually useful data
@@ -58,14 +58,14 @@ func JoinGameHandler(s *GameServer) http.HandlerFunc {
 			http.Error(w, "Game not found with ID "+gameId, 404)
 			return
 		}
-		playerInfo, err := game.AddPlayer()
+		clientInfo, err := game.AddClient()
 
 		if err != nil {
 			http.Error(w, "Unable to connect to game", 500)
 			return
 		}
-		slog.Info("Player joined game", slog.String("GameId", game.ID), slog.String("playerId", playerInfo.ID))
-		addPlayerCookies(w, playerInfo.ID, playerInfo.Key)
+		slog.Info("Client joined game", slog.String("GameId", game.ID), slog.String("clientId", clientInfo.ID))
+		addClientCookies(w, clientInfo.ID, clientInfo.Key)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(game)
@@ -81,7 +81,7 @@ func CreateGameHandler(a *GameServer) http.HandlerFunc {
 			http.Error(w, "Failed to create game", 500)
 		}
 		slog.Info("Game Created", slog.String("gameId", game.ID))
-		addPlayerCookies(w, game.Players[0].ID, game.Players[0].Key)
+		addClientCookies(w, game.Clients[0].ID, game.Clients[0].Key)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -99,18 +99,18 @@ func ConnectHandler(s *GameServer) http.HandlerFunc {
 			return
 		}
 
-		playerId, playerKey := getPlayerCookies(r)
-		player, err := game.GetPlayer(playerId, playerKey)
+		clientId, clientKey := getClientCookies(r)
+		client, err := game.GetClient(clientId, clientKey)
 		if err != nil {
-			slog.Error("Player connection not authorized", slog.String("playerId", playerId))
-			http.Error(w, "Player not authorized to connect to game", http.StatusUnauthorized)
+			slog.Error("Client connection not authorized", slog.String("clientId", clientId))
+			http.Error(w, "Client not authorized to connect to game", http.StatusUnauthorized)
 			return
 		}
 
 		// Upgrade to websockets
 		c, err := websocket.Accept(w, r, nil)
 		if err != nil {
-			slog.Error("Websocket Error", slog.Any("error", err.Error()), slog.String("playerId", playerId), slog.String("gameId", gameId))
+			slog.Error("Websocket Error", slog.Any("error", err.Error()), slog.String("clientId", clientId), slog.String("gameId", gameId))
 			http.Error(w, "Unable to create WebSocket connection.", 500)
 			return
 		}
@@ -121,7 +121,7 @@ func ConnectHandler(s *GameServer) http.HandlerFunc {
 			go game.Listen()
 		}
 
-		player.HandleConnection(c, game)
+		client.HandleConnection(c, game)
 
 	}
 }

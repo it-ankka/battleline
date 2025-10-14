@@ -1,6 +1,9 @@
-package game
+package server
 
-import "math/rand/v2"
+import (
+	. "github.com/it-ankka/battleline/internal/gamelogic"
+	"math/rand/v2"
+)
 
 type GameState struct {
 	DrawDeck     Deck

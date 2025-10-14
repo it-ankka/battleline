@@ -1,4 +1,4 @@
-package game
+package gamelogic
 
 type Formation int
 

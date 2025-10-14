@@ -1,4 +1,4 @@
-package game
+package gameserver
 
 import (
 	"errors"
@@ -8,6 +8,11 @@ import (
 type GameManager struct {
 	mu    sync.RWMutex
 	games map[string]*GameSession
+}
+
+type GameServer struct {
+	// Fs       fs.FS
+	GameManager *GameManager
 }
 
 func NewGameManager() *GameManager {
@@ -36,4 +41,11 @@ func (gm *GameManager) GetGame(gameID string) (*GameSession, bool) {
 	game, exists := gm.games[gameID]
 
 	return game, exists
+}
+
+func NewGameServer() *GameServer {
+	return &GameServer{
+		// Fs:       filesystem,
+		GameManager: NewGameManager(),
+	}
 }
