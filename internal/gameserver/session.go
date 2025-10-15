@@ -83,7 +83,7 @@ func (game *GameSession) AddClient() (*SessionClient, error) {
 
 func (game *GameSession) GetClient(clientId string, clientKey string) (*SessionClient, error) {
 	for _, p := range game.Clients {
-		if p.ID == clientId && p.Key == clientKey {
+		if p != nil && p.ID == clientId && p.Key == clientKey {
 			return p, nil
 		}
 	}

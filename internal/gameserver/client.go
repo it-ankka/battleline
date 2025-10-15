@@ -81,7 +81,8 @@ func (client *SessionClient) ListenToSession(ctx context.Context) {
 
 func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSession) {
 	client.Connection = c
-	ctx := client.Connection.CloseRead(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	go client.ListenToSession(ctx)
 
