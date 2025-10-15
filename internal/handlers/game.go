@@ -49,7 +49,6 @@ func getClientCookies(r *http.Request) (clientId string, clientKey string) {
 	return clientId, clientKey
 }
 
-// TODO Return some actually useful data
 func JoinGameHandler(s *GameServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		gameId := r.PathValue("gameId")
@@ -61,6 +60,7 @@ func JoinGameHandler(s *GameServer) http.HandlerFunc {
 		clientInfo, err := game.AddClient()
 
 		if err != nil {
+			slog.Error("Failed to add client to game", slog.Any("error", err.Error()))
 			http.Error(w, "Unable to connect to game", 500)
 			return
 		}

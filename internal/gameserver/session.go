@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -44,7 +45,7 @@ func NewGameSession() (*GameSession, error) {
 		return nil, errors.New("Unable to generate game IDs.")
 	}
 
-	s := &GameSession{
+	game := &GameSession{
 		ID:        id,
 		Status:    SessionCreated,
 		CreatedAt: time.Now().UTC(),
@@ -53,15 +54,15 @@ func NewGameSession() (*GameSession, error) {
 		done:      make(chan struct{}),
 	}
 
-	p, err := NewClient()
+	client, err := NewClient()
 
 	if err != nil {
 		return nil, errors.New("Unable to initialize clients.")
 	}
 
-	s.Clients[0] = p
+	game.Clients[0] = client
 
-	return s, nil
+	return game, nil
 }
 
 func (game *GameSession) AddClient() (*SessionClient, error) {
@@ -69,7 +70,7 @@ func (game *GameSession) AddClient() (*SessionClient, error) {
 	defer game.mu.Unlock()
 
 	// If a second client has not joined and game is not started
-	if game.Clients[1] == nil && game.Status == SessionCreated {
+	if game.Clients[1] == nil && game.Status != SessionEnded {
 		client, err := NewClient()
 		if err != nil {
 			return nil, errors.New("Unable to add client to session.")
@@ -90,13 +91,14 @@ func (game *GameSession) GetClient(clientId string, clientKey string) (*SessionC
 }
 
 func (game *GameSession) UpdateClients() {
-	for i, p := range game.Clients {
-		if p != nil && p.Connection != nil {
+	for i, client := range game.Clients {
+		if client != nil && client.Connection != nil {
 			privateGameState := game.GameState.GetPrivateGameState(i)
-			wsjson.Write(context.Background(), p.Connection, SessionMessage{
+			wsjson.Write(context.Background(), client.Connection, SessionMessage{
 				GameState: *privateGameState,
 			})
-		} else {
+		} else if client != nil && client.Connection != nil {
+			slog.Error("Could not connect to client", slog.String("clientId", client.ID))
 			// TODO: Unable to connect to client
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/coder/websocket"
@@ -22,7 +23,7 @@ type SessionClient struct {
 
 // Possible client actions:
 // "move": The client makes a move in the game
-// "message" The client sends a message in the game chat
+// "chat" The client sends a message in the game chat
 // "updateinfo": The client changes their nickname
 // "close": The client closes the connection
 type ClientMessage struct {
@@ -47,8 +48,6 @@ func generateClientKey() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// --- Client ---
-
 func NewClient() (*SessionClient, error) {
 	clientId, err := generateID(16)
 	if err != nil {
@@ -70,20 +69,21 @@ func NewClient() (*SessionClient, error) {
 	return client, nil
 }
 
+func (client *SessionClient) ListenToSession(ctx context.Context) {
+	for {
+		message := <-client.send
+		err := wsjson.Write(ctx, client.Connection, message)
+		if err != nil {
+			slog.Error("Failed to send message to client", slog.String("client", client.ID), slog.Any("error", err.Error()))
+		}
+	}
+}
+
 func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSession) {
 	client.Connection = c
 	ctx := client.Connection.CloseRead(context.Background())
 
-	go func() {
-		for {
-			// Wait for updates from session
-			message := <-client.send
-			err := wsjson.Write(ctx, client.Connection, message)
-			if err != nil {
-				// TODO Print error
-			}
-		}
-	}()
+	go client.ListenToSession(ctx)
 
 	for {
 		var m ClientMessage
@@ -93,7 +93,6 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 				Error: struct{ message string }{message: "Invalid message format"},
 			})
 		} else {
-			// Send message to gameSession for processing
 			select {
 			case game.messages <- m:
 			default:

@@ -7,23 +7,43 @@
   </head>
   <body>
     <div id="root">
-      <div id="message-log"></div>
       <div>
         <form id="create-game-form">
           <button type="submit">Create game</button>
         </form>
         <hr />
         <form id="join-game-form">
+          <label for="join-game-id-input">Game ID</label>
           <input
             name="gameId"
-            id="game-id-input"
+            id="join-game-id-input"
             type="text"
+            defaultValue=""
             placeholder="Game ID"
             required
           />
-          <button type="submit">Join game</button>
+          <button id="join-game-button" type="submit">Join game</button>
         </form>
+        <form id="copy-game-id-form" hidden>
+          <label for="game-id-input">Game ID</label>
+          <input
+            id="game-id-input"
+            type="text"
+            disabled
+            defaultValue=""
+            placeholder="Game ID"
+            required
+          />
+          <button
+            id="copy-game-id-button"
+            type="button"
+            onclick="navigator.clipboard.writeText(document.getElementById('game-id-input').value)"
+          >
+            Copy game ID
+          </button>
+        </div>
       </div>
+      <pre id="message-log"></pre>
     </div>
     <script type="text/javascript" src="/index.js"></script>
   </body>
