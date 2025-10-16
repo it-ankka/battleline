@@ -1,19 +1,16 @@
 package gameserver
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/coder/websocket/wsjson"
 	. "github.com/it-ankka/battleline/internal/gamestate"
 	"github.com/it-ankka/battleline/internal/gameutils"
 )
 
 type SessionStatus string
-type SessionMessageType string
 
 const (
 	SessionCreated SessionStatus = "created"
@@ -21,35 +18,6 @@ const (
 	SessionStarted SessionStatus = "started"
 	SessionEnded   SessionStatus = "ended"
 )
-
-const (
-	SessionMessagePing  SessionMessageType = "ping"
-	SessionMessageSync  SessionMessageType = "sync"
-	SessionMessageChat  SessionMessageType = "chat"
-	SessionMessageError SessionMessageType = "error"
-	SessionMessageClose SessionMessageType = "close"
-
-	// Messages concerning client actions
-	SessionMessageClientMove       SessionMessageType = "client_move"
-	SessionMessageClientReady      SessionMessageType = "client_ready"
-	SessionMessageClientConnect    SessionMessageType = "client_connect"
-	SessionMessageClientDisconnect SessionMessageType = "client_connect"
-)
-
-type ChatMessage struct {
-	Timestamp time.Time `json:"timestamp"`
-	ClientId  string    `json:"clientId"`
-	Nickname  string    `json:"nickname"`
-	Content   string    `json:"content"`
-}
-
-type SessionMessage struct {
-	MessageType SessionMessageType   `json:"type"`
-	Timestamp   time.Time            `json:"timestamp"`
-	GameState   *PrivateGameState    `json:"state"`
-	SessionInfo *GameSessionSnapshot `json:"session"`
-	Error       any                  `json:"error"`
-}
 
 type GameSession struct {
 	ID        string            `json:"id"`
@@ -137,29 +105,8 @@ func (game *GameSession) GetClient(clientId string, clientKey string) (*SessionC
 	return nil, errors.New("Client not found.")
 }
 
-func (game *GameSession) Broadcast(messageType SessionMessageType) {
-	for _, client := range game.Clients {
-		if client == nil || client.Connection == nil {
-			slog.Error("Could not connect to client", slog.String("clientId", client.ID))
-			continue
-		}
-		wsjson.Write(context.Background(), client.Connection, SessionMessage{
-			MessageType: messageType,
-			GameState:   game.GameState.GetPrivateGameState(client.Index),
-			SessionInfo: game.Snapshot(),
-		})
-	}
-}
-
 func (game *GameSession) IsStarted() bool {
 	return game.Status != SessionCreated
-}
-
-func (game *GameSession) StartUpdateTick(d time.Duration) {
-	for {
-		time.Sleep(d)
-		game.Broadcast(SessionMessageSync)
-	}
 }
 
 func (game *GameSession) Listen() {

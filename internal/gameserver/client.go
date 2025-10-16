@@ -23,38 +23,6 @@ type SessionClient struct {
 	Ready     bool   `json:"ready"`
 }
 
-type ClientMessageType string
-
-const (
-	ClientMessageReady      ClientMessageType = "ready"
-	ClientMessageMove       ClientMessageType = "move"
-	ClientMessageChat       ClientMessageType = "chat"
-	ClientMessageUpdateInfo ClientMessageType = "updateInfo"
-	ClientMessageClose      ClientMessageType = "close"
-)
-
-type ClientMessageData struct {
-	Move *any    `json:"move"` //TODO
-	Chat *string `json:"chat"`
-}
-
-type ClientMessage struct {
-	ClientId    string
-	ClientKey   string
-	MessageType ClientMessageType  `json:"type"`
-	Data        *ClientMessageData `json:"data"`
-}
-
-// Checks client message vali
-func (m ClientMessage) IsValid() bool {
-	switch m.MessageType {
-	case ClientMessageChat:
-		return m.Data != nil && m.Data.Chat != nil && len(*m.Data.Chat) > 0
-	default:
-		return false
-	}
-}
-
 func NewClient(index int) (*SessionClient, error) {
 	clientId, err := gameutils.GenerateID(16)
 	if err != nil {
@@ -94,6 +62,7 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 
 	go client.ListenToSession(ctx)
 
+	// Get initial sync
 	game.Broadcast(SessionMessageSync)
 
 	for {
@@ -103,18 +72,18 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 			wsjson.Write(ctx, client.Connection, SessionMessage{
 				Error: struct{ message string }{message: "Invalid message format"},
 			})
-		} else {
-			// Add client information to the message
-			m.ClientId = client.ID
-			m.ClientKey = client.Key
+			continue
+		}
 
-			select {
-			case game.messages <- m:
-			default:
-				wsjson.Write(ctx, client.Connection, SessionMessage{
-					Error: struct{ message string }{message: "Session not responding"},
-				})
-			}
+		// Include client info
+		m.Client = client
+
+		select {
+		case game.messages <- m:
+		default:
+			wsjson.Write(ctx, client.Connection, SessionMessage{
+				Error: struct{ message string }{message: "Session not responding"},
+			})
 		}
 	}
 }
