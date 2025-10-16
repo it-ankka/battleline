@@ -56,12 +56,12 @@ function connectToGame(gameId, maxRetries = 5) {
     }
     try {
       const data = JSON.parse(ev.data);
-      if (data.type == "chat") {
+      if (["tick", "chat"].includes(data.type)) {
         chatLog.innerText = data.session.chatLog
           .map((m) => m.content)
           .join("\n\n");
-        console.log(data.session.chatLog);
       }
+      console.log(data);
     } catch (err) {
       console.error(err);
     }

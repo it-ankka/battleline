@@ -40,7 +40,7 @@ func NewGameState() *GameState {
 	return gs
 }
 
-func (gs *GameState) GetPrivateGameState(playerIdx int) PrivateGameState {
+func (gs *GameState) GetPrivateGameState(playerIdx int) *PrivateGameState {
 	var opponentIdx = 0
 	if playerIdx == 0 {
 		opponentIdx = 1
@@ -48,7 +48,7 @@ func (gs *GameState) GetPrivateGameState(playerIdx int) PrivateGameState {
 		playerIdx = 1
 	}
 
-	return PrivateGameState{
+	return &PrivateGameState{
 		ActivePlayer:     gs.ActivePlayer,
 		Lanes:            gs.Lanes,
 		PlayerHand:       gs.PlayerHands[playerIdx],

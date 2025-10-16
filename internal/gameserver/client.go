@@ -3,6 +3,7 @@ package gameserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/coder/websocket"
@@ -22,14 +23,13 @@ type SessionClient struct {
 	Ready     bool   `json:"ready"`
 }
 
-type ClientMessageType int
+type ClientMessageType string
 
 const (
-	ClientMessageInvalid ClientMessageType = iota
-	ClientMessageMove
-	ClientMessageChat
-	ClientMessageUpdateInfo
-	ClientMessageClose
+	ClientMessageMove       ClientMessageType = "move"
+	ClientMessageChat       ClientMessageType = "chat"
+	ClientMessageUpdateInfo ClientMessageType = "updateInfo"
+	ClientMessageClose      ClientMessageType = "close"
 )
 
 type ClientMessageData struct {
@@ -38,25 +38,20 @@ type ClientMessageData struct {
 }
 
 type ClientMessage struct {
-	ClientId        string
-	ClientKey       string
-	MessageTypeType string             `json:"type"`
-	Data            *ClientMessageData `json:"data"`
+	ClientId    string
+	ClientKey   string
+	MessageType ClientMessageType  `json:"type"`
+	Data        *ClientMessageData `json:"data"`
 }
 
-// Gets the message type from the client message. Returns ClientMessageInvalid if the type is unknown or the required data is invalid.
-func (m ClientMessage) GetType() ClientMessageType {
-	typeStr := m.MessageTypeType
-	if typeStr == "move" {
-		return ClientMessageMove
-	} else if typeStr == "chat" && m.Data != nil && m.Data.Chat != nil && len(*m.Data.Chat) > 0 {
-		return ClientMessageChat
-	} else if typeStr == "updateinfo" {
-		return ClientMessageUpdateInfo
-	} else if typeStr == "close" {
-		return ClientMessageClose
+// Checks client message vali
+func (m ClientMessage) IsValid() bool {
+	switch m.MessageType {
+	case ClientMessageChat:
+		return m.Data != nil && m.Data.Chat != nil && len(*m.Data.Chat) > 0
+	default:
+		return false
 	}
-	return ClientMessageInvalid
 }
 
 func NewClient(index int) (*SessionClient, error) {
@@ -74,7 +69,7 @@ func NewClient(index int) (*SessionClient, error) {
 		ID:       clientId,
 		Index:    index,
 		Key:      clientKey,
-		Nickname: "Client",
+		Nickname: fmt.Sprintf("Player %d", index+1),
 		send:     make(chan SessionMessage),
 	}
 

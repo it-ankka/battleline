@@ -92,7 +92,7 @@ func CreateGameHandler(a *GameServer) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(game.GetInfo())
+		json.NewEncoder(w).Encode(game.Snapshot())
 	}
 }
 

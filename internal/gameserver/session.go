@@ -12,35 +12,37 @@ import (
 	"github.com/it-ankka/battleline/internal/gameutils"
 )
 
-type SessionStatus int
-type SessionMessageType int
+type SessionStatus string
+type SessionMessageType string
 
 const (
-	SessionCreated SessionStatus = iota
-	SessionReady
-	SessionStarted
-	SessionEnded
+	SessionCreated SessionStatus = "created"
+	SessionReady   SessionStatus = "ready"
+	SessionStarted SessionStatus = "started"
+	SessionEnded   SessionStatus = "ended"
 )
 
 const (
-	SessionMessageTick SessionMessageType = iota
-	SessionMessageMove
-	SessionMessageChat
-	SessionMessageClose
+	SessionMessageTick  SessionMessageType = "tick"
+	SessionMessageMove  SessionMessageType = "move"
+	SessionMessageChat  SessionMessageType = "chat"
+	SessionMessageError SessionMessageType = "close"
+	SessionMessageClose SessionMessageType = "close"
 )
 
 type ChatMessage struct {
-	SentAt   time.Time `json:"timestamp"`
-	ClientId string    `json:"clientId"`
-	Nickname string    `json:"nickname"`
-	Content  string    `json:"content"`
+	Timestamp time.Time `json:"timestamp"`
+	ClientId  string    `json:"clientId"`
+	Nickname  string    `json:"nickname"`
+	Content   string    `json:"content"`
 }
 
 type SessionMessage struct {
-	MessageType string           `json:"type"`
-	GameState   PrivateGameState `json:"state"`
-	SessionInfo GameSessionInfo  `json:"session"`
-	Error       any              `json:"error"`
+	MessageType SessionMessageType   `json:"type"`
+	Timestamp   time.Time            `json:"timestamp"`
+	GameState   *PrivateGameState    `json:"state"`
+	SessionInfo *GameSessionSnapshot `json:"session"`
+	Error       any                  `json:"error"`
 }
 
 type GameSession struct {
@@ -59,11 +61,11 @@ type GameSession struct {
 	mu sync.RWMutex
 }
 
-type GameSessionInfo struct {
+type GameSessionSnapshot struct {
 	ID        string            `json:"id"`
-	Clients   [2]*SessionClient `json:"clients"`
 	Status    SessionStatus     `json:"status"`
 	CreatedAt time.Time         `json:"createdAt"`
+	Clients   [2]*SessionClient `json:"clients"`
 	ChatLog   []*ChatMessage    `json:"chatLog"`
 }
 
@@ -78,6 +80,7 @@ func NewGameSession() (*GameSession, error) {
 		Status:    SessionCreated,
 		CreatedAt: time.Now().UTC(),
 		GameState: NewGameState(),
+		ChatLog:   []*ChatMessage{},
 		messages:  make(chan ClientMessage),
 		done:      make(chan struct{}),
 	}
@@ -93,8 +96,8 @@ func NewGameSession() (*GameSession, error) {
 	return game, nil
 }
 
-func (game *GameSession) GetInfo() GameSessionInfo {
-	return GameSessionInfo{
+func (game *GameSession) Snapshot() *GameSessionSnapshot {
+	return &GameSessionSnapshot{
 		ID:        game.ID,
 		Status:    game.Status,
 		CreatedAt: game.CreatedAt,
@@ -128,35 +131,17 @@ func (game *GameSession) GetClient(clientId string, clientKey string) (*SessionC
 	return nil, errors.New("Client not found.")
 }
 
-func (messageType SessionMessageType) ToString() string {
-	switch messageType {
-	case SessionMessageTick:
-		return "tick"
-	case SessionMessageMove:
-		return "move"
-	case SessionMessageChat:
-		return "chat"
-	case SessionMessageClose:
-		return "close"
-	default:
-		return ""
-	}
-}
-
 func (game *GameSession) Broadcast(messageType SessionMessageType) {
-	for i, client := range game.Clients {
-		if client != nil && client.Connection != nil {
-			privateGameState := game.GameState.GetPrivateGameState(i)
-			message := SessionMessage{
-				MessageType: messageType.ToString(),
-				GameState:   privateGameState,
-				SessionInfo: game.GetInfo(),
-			}
-
-			wsjson.Write(context.Background(), client.Connection, message)
-		} else if client != nil && client.Connection != nil {
+	for _, client := range game.Clients {
+		if client == nil || client.Connection == nil {
 			slog.Error("Could not connect to client", slog.String("clientId", client.ID))
+			continue
 		}
+		wsjson.Write(context.Background(), client.Connection, SessionMessage{
+			MessageType: messageType,
+			GameState:   game.GameState.GetPrivateGameState(client.Index),
+			SessionInfo: game.Snapshot(),
+		})
 	}
 }
 
@@ -168,9 +153,10 @@ func (game *GameSession) HandleChatMessage(client *SessionClient, data *ClientMe
 	game.mu.Lock()
 	defer game.mu.Unlock()
 	chatMessage := &ChatMessage{
-		SentAt:   time.Now(),
-		ClientId: client.ID,
-		Content:  *data.Chat,
+		Timestamp: time.Now(),
+		ClientId:  client.ID,
+		Nickname:  client.Nickname,
+		Content:   *data.Chat,
 	}
 	game.ChatLog = append(game.ChatLog, chatMessage)
 	game.Broadcast(SessionMessageChat)
@@ -194,7 +180,12 @@ func (game *GameSession) ProcessClientMessage(m ClientMessage) {
 		return
 	}
 
-	switch m.GetType() {
+	if !m.IsValid() {
+		slog.Error("Unable to process client message.", slog.String("clientId", m.ClientId))
+		return
+	}
+
+	switch m.MessageType {
 	case ClientMessageMove:
 		game.HandleMove(client, m.Data)
 	case ClientMessageChat:
