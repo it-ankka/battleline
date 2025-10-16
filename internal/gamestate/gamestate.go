@@ -6,8 +6,8 @@ import (
 )
 
 type GameState struct {
-	DrawDeck     Deck
 	ActivePlayer int
+	DrawDeck     Deck
 	Lanes        GameLanes
 	PlayerHands  [2]Deck
 }
@@ -20,27 +20,27 @@ type PrivateGameState struct {
 	OpponentHandSize int       `json:"opponentHandSize"`
 }
 
-func NewGameState() GameState {
-	var g GameState
+func NewGameState() *GameState {
+	gs := &GameState{}
 
-	g.ActivePlayer = rand.IntN(2)
-	g.DrawDeck = CreateStartingDeck()
-	g.DrawDeck = g.DrawDeck.Shuffle()
+	gs.ActivePlayer = rand.IntN(2)
+	gs.DrawDeck = CreateStartingDeck()
+	gs.DrawDeck = gs.DrawDeck.Shuffle()
 
 	for range 7 {
-		for i := range g.PlayerHands {
-			if len(g.DrawDeck) > 0 {
-				newDeck, c := g.DrawDeck.Pop()
-				g.DrawDeck = newDeck
-				g.PlayerHands[i] = append(g.PlayerHands[i], c)
+		for i := range gs.PlayerHands {
+			if len(gs.DrawDeck) > 0 {
+				newDeck, c := gs.DrawDeck.Pop()
+				gs.DrawDeck = newDeck
+				gs.PlayerHands[i] = append(gs.PlayerHands[i], c)
 			}
 		}
 	}
 
-	return g
+	return gs
 }
 
-func (gs *GameState) GetPrivateGameState(playerIdx int) *PrivateGameState {
+func (gs *GameState) GetPrivateGameState(playerIdx int) PrivateGameState {
 	var opponentIdx = 0
 	if playerIdx == 0 {
 		opponentIdx = 1
@@ -48,7 +48,7 @@ func (gs *GameState) GetPrivateGameState(playerIdx int) *PrivateGameState {
 		playerIdx = 1
 	}
 
-	return &PrivateGameState{
+	return PrivateGameState{
 		ActivePlayer:     gs.ActivePlayer,
 		Lanes:            gs.Lanes,
 		PlayerHand:       gs.PlayerHands[playerIdx],

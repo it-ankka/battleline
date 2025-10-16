@@ -80,7 +80,6 @@ func JoinGameHandler(s *GameServer) http.HandlerFunc {
 	}
 }
 
-// TODO Return some actually useful data
 func CreateGameHandler(a *GameServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		game, err := a.GameManager.CreateGame()
@@ -93,18 +92,19 @@ func CreateGameHandler(a *GameServer) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(game)
+		json.NewEncoder(w).Encode(game.GetInfo())
 	}
 }
 
-// TODO Check user id and key and process moves and send board status updates
 func ConnectHandler(s *GameServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		clientId, clientKey := getClientCookies(r)
 		gameId := r.PathValue("gameId")
 		// Upgrade to websockets
-		c, err := websocket.Accept(w, r, nil)
+		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			CompressionMode: websocket.CompressionContextTakeover,
+		})
 		if err != nil {
 			slog.Error("Websocket Error", slog.Any("error", err.Error()), slog.String("clientId", clientId), slog.String("gameId", gameId))
 			return
@@ -127,7 +127,6 @@ func ConnectHandler(s *GameServer) http.HandlerFunc {
 		defer c.Close(websocket.StatusNormalClosure, "connection closed")
 
 		if !game.IsStarted() {
-			go game.StartUpdateTick(time.Second * 1)
 			go game.Listen()
 		}
 

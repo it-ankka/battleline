@@ -2,65 +2,77 @@ package gameserver
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"log/slog"
-	"strings"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
+	"github.com/it-ankka/battleline/internal/gameutils"
 )
 
 type SessionClient struct {
-	ID         string
 	Key        string
 	Connection *websocket.Conn
-	Nickname   string `json:"nickname"`
 	send       chan SessionMessage
+
+	ID        string `json:"playerId"`
+	Index     int    `json:"playerIndex"`
+	Nickname  string `json:"nickname"`
+	Connected bool   `json:"connected"`
+	Ready     bool   `json:"ready"`
 }
 
-// Possible client actions:
-// "move": The client makes a move in the game
-// "chat" The client sends a message in the game chat
-// "updateinfo": The client changes their nickname
-// "close": The client closes the connection
+type ClientMessageType int
+
+const (
+	ClientMessageInvalid ClientMessageType = iota
+	ClientMessageMove
+	ClientMessageChat
+	ClientMessageUpdateInfo
+	ClientMessageClose
+)
+
+type ClientMessageData struct {
+	Move *any    `json:"move"` //TODO
+	Chat *string `json:"chat"`
+}
+
 type ClientMessage struct {
-	ActionType string `json:"type"`
-	Data       any    `json:"data"`
+	ClientId        string
+	ClientKey       string
+	MessageTypeType string             `json:"type"`
+	Data            *ClientMessageData `json:"data"`
 }
 
-func generateID(length int) (string, error) {
-	bytes := make([]byte, length)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
+// Gets the message type from the client message. Returns ClientMessageInvalid if the type is unknown or the required data is invalid.
+func (m ClientMessage) GetType() ClientMessageType {
+	typeStr := m.MessageTypeType
+	if typeStr == "move" {
+		return ClientMessageMove
+	} else if typeStr == "chat" && m.Data != nil && m.Data.Chat != nil && len(*m.Data.Chat) > 0 {
+		return ClientMessageChat
+	} else if typeStr == "updateinfo" {
+		return ClientMessageUpdateInfo
+	} else if typeStr == "close" {
+		return ClientMessageClose
 	}
-	id := base64.URLEncoding.EncodeToString(bytes)
-	return strings.TrimRight(id[:length], "="), nil
+	return ClientMessageInvalid
 }
 
-func generateClientKey() (string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
-func NewClient() (*SessionClient, error) {
-	clientId, err := generateID(16)
+func NewClient(index int) (*SessionClient, error) {
+	clientId, err := gameutils.GenerateID(16)
 	if err != nil {
 		return nil, errors.New("Unable to generate IDs.")
 	}
 
-	clientKey, err := generateClientKey()
+	clientKey, err := gameutils.GenerateKey(32)
 	if err != nil {
 		return nil, errors.New("Unable to generate client Key.")
 	}
 
 	client := &SessionClient{
 		ID:       clientId,
+		Index:    index,
 		Key:      clientKey,
 		Nickname: "Client",
 		send:     make(chan SessionMessage),
@@ -86,6 +98,8 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 
 	go client.ListenToSession(ctx)
 
+	game.Broadcast(SessionMessageTick)
+
 	for {
 		var m ClientMessage
 		err := wsjson.Read(ctx, client.Connection, &m)
@@ -94,6 +108,10 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 				Error: struct{ message string }{message: "Invalid message format"},
 			})
 		} else {
+			// Add client information to the message
+			m.ClientId = client.ID
+			m.ClientKey = client.Key
+
 			select {
 			case game.messages <- m:
 			default:

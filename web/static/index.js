@@ -1,13 +1,19 @@
 const messageLog = document.getElementById("message-log");
+const chatLog = document.getElementById("chat-log");
+
+const copyGameIdForm = document.getElementById("copy-game-id-form");
 const createGameForm = document.getElementById("create-game-form");
 const joinGameForm = document.getElementById("join-game-form");
+const chatForm = document.getElementById("chat-form");
+
 const copyGameIdInput = document.getElementById("game-id-input");
 const joinGameInput = document.getElementById("join-game-id-input");
-const joinGameButton = document.getElementById("join-game-button");
-const copyGameIdForm = document.getElementById("copy-game-id-form");
+const chatInput = document.getElementById("chat-input");
+
+let conn;
 
 function connectToGame(gameId, maxRetries = 5) {
-  const conn = new WebSocket(`ws://${location.host}/ws/${gameId}`);
+  conn = new WebSocket(`ws://${location.host}/ws/${gameId}`);
 
   conn.onclose = (ev) => {
     console.log(
@@ -38,6 +44,7 @@ function connectToGame(gameId, maxRetries = 5) {
     copyGameIdInput.value = gameId;
     joinGameForm.hidden = true;
     copyGameIdForm.hidden = false;
+    chatForm.hidden = false;
     console.info("websocket connected");
   };
 
@@ -48,12 +55,15 @@ function connectToGame(gameId, maxRetries = 5) {
       return;
     }
     try {
-      const jsonString = JSON.stringify(JSON.parse(ev.data), null, 2);
-      messageLog.innerText = jsonString;
-
-      console.log(JSON.parse(ev.data));
+      const data = JSON.parse(ev.data);
+      if (data.type == "chat") {
+        chatLog.innerText = data.session.chatLog
+          .map((m) => m.content)
+          .join("\n\n");
+        console.log(data.session.chatLog);
+      }
     } catch (err) {
-      console.log(ev.data);
+      console.error(err);
     }
   };
 }
@@ -114,6 +124,23 @@ const joinGameSubmitHandler = async (e) => {
   joinGame(gameId);
 };
 
+const chatSubmitHandler = async (e) => {
+  e.preventDefault();
+  const chatMessage = chatInput.value ?? "";
+  if (chatMessage.length < 1) return;
+
+  if (conn.readyState === WebSocket.OPEN) {
+    conn.send(
+      JSON.stringify({
+        type: "chat",
+        data: {
+          chat: chatMessage,
+        },
+      }),
+    );
+  }
+};
+
 const reconnectToGame = async () => {
   const queryParams = new URLSearchParams(window.location.search);
   const gameId = queryParams.get("game_id");
@@ -126,5 +153,6 @@ const reconnectToGame = async () => {
 
 createGameForm.onsubmit = createGameSubmitHandler;
 joinGameForm.onsubmit = joinGameSubmitHandler;
+chatForm.onsubmit = chatSubmitHandler;
 
 reconnectToGame();

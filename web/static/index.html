@@ -5,6 +5,7 @@
     <title>Battleline</title>
     <meta name="viewport" content="width=device-width" />
   </head>
+
   <body>
     <div id="root">
       <div>
@@ -41,10 +42,23 @@
           >
             Copy game ID
           </button>
-        </div>
+        </form>
+        <hr />
+        <form id="chat-form" hidden>
+          <input
+            name="chat"
+            id="chat-input"
+            type="text"
+            defaultValue=""
+            placeholder="chat"
+            required
+          />
+          <button id="chat-button" type="submit">Send</button>
+        </form>
       </div>
-      <pre id="message-log"></pre>
     </div>
+    <pre id="message-log"></pre>
+    <pre id="chat-log"></pre>
     <script type="text/javascript" src="/index.js"></script>
   </body>
 </html>
