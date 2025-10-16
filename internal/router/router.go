@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	. "github.com/it-ankka/battleline/internal/gameserver"
-	. "github.com/it-ankka/battleline/internal/handlers"
 )
 
 func NewRouter(s *GameServer) *http.ServeMux {

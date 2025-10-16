@@ -56,7 +56,7 @@ function connectToGame(gameId, maxRetries = 5) {
     }
     try {
       const data = JSON.parse(ev.data);
-      if (["tick", "chat"].includes(data.type)) {
+      if (["sync", "chat"].includes(data.type)) {
         chatLog.innerText = data.session.chatLog
           .map((m) => m.content)
           .join("\n\n");

@@ -26,6 +26,7 @@ type SessionClient struct {
 type ClientMessageType string
 
 const (
+	ClientMessageReady      ClientMessageType = "ready"
 	ClientMessageMove       ClientMessageType = "move"
 	ClientMessageChat       ClientMessageType = "chat"
 	ClientMessageUpdateInfo ClientMessageType = "updateInfo"
@@ -93,7 +94,7 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 
 	go client.ListenToSession(ctx)
 
-	game.Broadcast(SessionMessageTick)
+	game.Broadcast(SessionMessageSync)
 
 	for {
 		var m ClientMessage
