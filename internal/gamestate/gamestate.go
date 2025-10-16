@@ -1,4 +1,4 @@
-package server
+package gamestate
 
 import (
 	. "github.com/it-ankka/battleline/internal/gamelogic"

@@ -126,7 +126,7 @@ func ConnectHandler(s *GameServer) http.HandlerFunc {
 
 		defer c.Close(websocket.StatusNormalClosure, "connection closed")
 
-		if !game.IsStarted() {
+		if !game.IsListening() {
 			go game.Listen()
 		}
 

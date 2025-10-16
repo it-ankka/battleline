@@ -4,61 +4,83 @@
     <meta charset="UTF-8" />
     <title>Battleline</title>
     <meta name="viewport" content="width=device-width" />
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 1rem;
+      }
+      form {
+        margin-bottom: 1rem;
+      }
+      #message-log,
+      #chat-log {
+        background: #f3f3f3;
+        padding: 1rem;
+        border-radius: 6px;
+        min-height: 100px;
+        white-space: pre-wrap;
+      }
+    </style>
   </head>
 
   <body>
     <div id="root">
-      <div>
-        <form id="create-game-form">
-          <button type="submit">Create game</button>
-        </form>
-        <hr />
-        <form id="join-game-form">
-          <label for="join-game-id-input">Game ID</label>
-          <input
-            name="gameId"
-            id="join-game-id-input"
-            type="text"
-            defaultValue=""
-            placeholder="Game ID"
-            required
-          />
-          <button id="join-game-button" type="submit">Join game</button>
-        </form>
-        <form id="copy-game-id-form" hidden>
-          <label for="game-id-input">Game ID</label>
-          <input
-            id="game-id-input"
-            type="text"
-            disabled
-            defaultValue=""
-            placeholder="Game ID"
-            required
-          />
-          <button
-            id="copy-game-id-button"
-            type="button"
-            onclick="navigator.clipboard.writeText(document.getElementById('game-id-input').value)"
-          >
-            Copy game ID
-          </button>
-        </form>
-        <hr />
-        <form id="chat-form" hidden>
-          <input
-            name="chat"
-            id="chat-input"
-            type="text"
-            defaultValue=""
-            placeholder="chat"
-            required
-          />
-          <button id="chat-button" type="submit">Send</button>
-        </form>
-      </div>
+      <form id="create-game-form">
+        <button type="submit">Create Game</button>
+      </form>
+
+      <hr />
+
+      <form id="join-game-form">
+        <label for="join-game-id-input">Game ID</label>
+        <input
+          name="gameId"
+          id="join-game-id-input"
+          type="text"
+          placeholder="Enter Game ID"
+          required
+        />
+        <button id="join-game-button" type="submit">Join Game</button>
+      </form>
+
+      <form id="copy-game-id-form" hidden>
+        <label for="game-id-input">Game ID</label>
+        <input id="game-id-input" type="text" disabled placeholder="Game ID" />
+        <button
+          id="copy-game-id-button"
+          type="button"
+          onclick="navigator.clipboard.writeText(document.getElementById('game-id-input').value)"
+        >
+          Copy Game ID
+        </button>
+      </form>
+
+      <hr />
+
+      <form id="ready-form" hidden>
+        <button id="ready-button" type="submit">I'm Ready!</button>
+      </form>
+
+      <form id="chat-form" hidden>
+        <input
+          name="chat"
+          id="chat-input"
+          type="text"
+          placeholder="Type a message..."
+          required
+        />
+        <button id="chat-button" type="submit">Send</button>
+      </form>
+
+      <h3>Messages</h3>
+      <pre id="message-log"></pre>
+
+      <h3>Chat</h3>
+      <pre id="chat-log"></pre>
     </div>
-    <pre id="message-log"></pre>
-    <pre id="chat-log"></pre>
+
     <script type="text/javascript" src="/index.js"></script>
   </body>
 </html>

@@ -6,17 +6,17 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/it-ankka/battleline/internal/gamestate"
+	"github.com/it-ankka/battleline/internal/gamestate"
 	"github.com/it-ankka/battleline/internal/gameutils"
 )
 
 type SessionStatus string
 
 const (
-	SessionCreated SessionStatus = "created"
-	SessionReady   SessionStatus = "ready"
-	SessionStarted SessionStatus = "started"
-	SessionEnded   SessionStatus = "ended"
+	SessionStatusCreated    SessionStatus = "created"
+	SessionStatusReady      SessionStatus = "ready"
+	SessionStatusInProgress SessionStatus = "in-progress"
+	SessionStatusEnded      SessionStatus = "ended"
 )
 
 type GameSession struct {
@@ -26,7 +26,7 @@ type GameSession struct {
 	CreatedAt time.Time         `json:"createdAt"`
 	ChatLog   []*ChatMessage    `json:"chatLog"`
 
-	GameState *GameState
+	GameState *gamestate.GameState
 
 	// Channels for communication
 	messages chan ClientMessage
@@ -51,9 +51,9 @@ func NewGameSession() (*GameSession, error) {
 
 	game := &GameSession{
 		ID:        id,
-		Status:    SessionCreated,
+		Status:    SessionStatusCreated,
 		CreatedAt: time.Now().UTC(),
-		GameState: NewGameState(),
+		GameState: nil,
 		ChatLog:   []*ChatMessage{},
 		messages:  make(chan ClientMessage),
 		done:      make(chan struct{}),
@@ -85,7 +85,7 @@ func (game *GameSession) AddClient() (*SessionClient, error) {
 	defer game.mu.Unlock()
 
 	// If a second client has not joined and game is not started
-	if game.Clients[1] == nil && game.Status != SessionEnded {
+	if game.Clients[1] == nil && game.Status != SessionStatusEnded {
 		client, err := NewClient(1)
 		if err != nil {
 			return nil, errors.New("Unable to add client to session.")
@@ -105,8 +105,28 @@ func (game *GameSession) GetClient(clientId string, clientKey string) (*SessionC
 	return nil, errors.New("Client not found.")
 }
 
-func (game *GameSession) IsStarted() bool {
-	return game.Status != SessionCreated
+func (game *GameSession) IsListening() bool {
+	return game.Status != SessionStatusCreated && game.Status != SessionStatusEnded
+}
+
+func (game *GameSession) IsReadyToStart() bool {
+	if game.Status != SessionStatusReady {
+		return false
+	}
+	for _, client := range game.Clients {
+		if client == nil || client.Connection == nil || client.Ready == false {
+			return false
+		}
+	}
+	return true
+}
+
+func (game *GameSession) StartGame() {
+	game.mu.Lock()
+	defer game.mu.Unlock()
+	game.GameState = gamestate.NewGameState()
+	game.Status = SessionStatusInProgress
+	game.Broadcast(SessionMessageSessionStart)
 }
 
 func (game *GameSession) Listen() {
@@ -114,7 +134,7 @@ func (game *GameSession) Listen() {
 	func() {
 		game.mu.Lock()
 		defer game.mu.Unlock()
-		game.Status = SessionReady
+		game.Status = SessionStatusReady
 	}()
 	for {
 		// Wait for client messages

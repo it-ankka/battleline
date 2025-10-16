@@ -13,21 +13,25 @@ type SessionMessageType string
 type ClientMessageType string
 
 const (
-	ClientMessageReady ClientMessageType = "ready"
-	ClientMessageMove  ClientMessageType = "move"
-	ClientMessageChat  ClientMessageType = "chat"
-	ClientMessageClose ClientMessageType = "close"
+	ClientMessageSetReady ClientMessageType = "set_ready"
+	ClientMessageMove     ClientMessageType = "move"
+	ClientMessageChat     ClientMessageType = "chat"
+	ClientMessageClose    ClientMessageType = "close"
 
 	SessionMessagePing  SessionMessageType = "ping"
 	SessionMessageSync  SessionMessageType = "sync"
 	SessionMessageError SessionMessageType = "error"
 	SessionMessageClose SessionMessageType = "close"
 
+	SessionMessageSessionStart SessionMessageType = "session_start"
+	SessionMessageSessionEnd   SessionMessageType = "session_end"
+
 	SessionMessageClientReady      SessionMessageType = "client_ready"
+	SessionMessageClientUnready    SessionMessageType = "client_unready"
 	SessionMessageClientMove       SessionMessageType = "client_move"
-	SessionMessageClientChat       SessionMessageType = "chat"
+	SessionMessageClientChat       SessionMessageType = "client_chat"
 	SessionMessageClientConnect    SessionMessageType = "client_connect"
-	SessionMessageClientDisconnect SessionMessageType = "client_connect"
+	SessionMessageClientDisconnect SessionMessageType = "client_disconnect"
 )
 
 type SessionMessage struct {
@@ -53,7 +57,7 @@ type ClientMessage struct {
 // Checks client message vali
 func (m ClientMessage) IsValid() bool {
 	switch m.MessageType {
-	case ClientMessageReady:
+	case ClientMessageSetReady:
 		return m.Data != nil && m.Data.Ready != nil
 	case ClientMessageChat:
 		return m.Data != nil && m.Data.Chat != nil && len(*m.Data.Chat) > 0
@@ -71,20 +75,34 @@ func (game *GameSession) Broadcast(messageType SessionMessageType) {
 			slog.Error("Could not connect to client", slog.String("clientId", client.ID))
 			continue
 		}
+		var privateGameState *gamestate.PrivateGameState = nil
+		if game.GameState != nil {
+			privateGameState = game.GameState.GetPrivateGameState(client.Index)
+		}
 		wsjson.Write(context.Background(), client.Connection, SessionMessage{
 			MessageType: messageType,
-			GameState:   game.GameState.GetPrivateGameState(client.Index),
+			GameState:   privateGameState,
 			SessionInfo: game.Snapshot(),
 		})
 	}
 }
 
 // TODO
-func (game *GameSession) HandleClientReadyMessage(m ClientMessage) {
+func (game *GameSession) HandleClientSetReadyMessage(m ClientMessage) {
+
 	game.mu.Lock()
-	defer game.mu.Unlock()
 	m.Client.Ready = *m.Data.Ready
-	game.Broadcast(SessionMessageClientReady)
+	game.mu.Unlock()
+
+	if game.IsReadyToStart() {
+		game.StartGame()
+		return
+	}
+	if *m.Data.Ready {
+		game.Broadcast(SessionMessageClientReady)
+	} else {
+		game.Broadcast(SessionMessageClientUnready)
+	}
 }
 
 // TODO
@@ -115,8 +133,8 @@ func (game *GameSession) ProcessClientMessage(m ClientMessage) {
 	}
 
 	switch m.MessageType {
-	case ClientMessageReady:
-		game.HandleClientReadyMessage(m)
+	case ClientMessageSetReady:
+		game.HandleClientSetReadyMessage(m)
 	case ClientMessageMove:
 		game.HandleClientMoveMessage(m)
 	case ClientMessageChat:

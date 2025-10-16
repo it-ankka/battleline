@@ -5,70 +5,109 @@ const copyGameIdForm = document.getElementById("copy-game-id-form");
 const createGameForm = document.getElementById("create-game-form");
 const joinGameForm = document.getElementById("join-game-form");
 const chatForm = document.getElementById("chat-form");
+const readyForm = document.getElementById("ready-form");
 
 const copyGameIdInput = document.getElementById("game-id-input");
 const joinGameInput = document.getElementById("join-game-id-input");
 const chatInput = document.getElementById("chat-input");
 
 let conn;
+let isReady = false;
+
+function logMessage(msg) {
+  messageLog.innerText += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+}
+
+function updateChatLog(chatLogMessages) {
+  if (!chatLog) return;
+  chatLog.innerText = chatLogMessages
+    .map(
+      (m) =>
+        `[${new Date(m.timestamp).toLocaleTimeString()}] <${m.nickname}>: ${m.content}`,
+    )
+    .join("\n");
+}
+
+function updateUIForConnectedGame(gameId) {
+  copyGameIdInput.value = gameId;
+  joinGameForm.hidden = true;
+  copyGameIdForm.hidden = false;
+  chatForm.hidden = false;
+  readyForm.hidden = false;
+}
 
 function connectToGame(gameId, maxRetries = 5) {
   conn = new WebSocket(`ws://${location.host}/ws/${gameId}`);
 
   conn.onclose = (ev) => {
-    console.log(
-      `WebSocket Disconnected code: ${ev.code}, reason: ${ev.reason}`,
-    );
+    logMessage(`❌ Disconnected (code: ${ev.code}, reason: ${ev.reason})`);
     if (![1000, 1001, 1008].includes(ev.code) && maxRetries > 0) {
-      console.info(
-        "Disconnected. Reconnecting in 1s",
-        maxRetries,
-        "retries remaining",
-      );
+      logMessage(`Reconnecting in 1s (${maxRetries} retries left)`);
       setTimeout(() => connectToGame(gameId, maxRetries - 1), 1000);
       return;
     }
     joinGameForm.hidden = false;
     copyGameIdForm.hidden = true;
+    chatForm.hidden = true;
+    readyForm.hidden = true;
 
     const url = new URL(window.location.href);
     url.search = "";
     window.history.pushState(null, "", url.toString());
   };
-  conn.onerror = (ev) => {
-    console.error("Websocket error", ev);
+
+  conn.onerror = (ev) => console.error("WebSocket error:", ev);
+
+  conn.onopen = () => {
+    logMessage("✅ Connected to WebSocket");
+    updateUIForConnectedGame(gameId);
   };
 
-  conn.onopen = (ev) => {
-    // Update UI
-    copyGameIdInput.value = gameId;
-    joinGameForm.hidden = true;
-    copyGameIdForm.hidden = false;
-    chatForm.hidden = false;
-    console.info("websocket connected");
-  };
-
-  // This is where we handle messages received.
   conn.onmessage = (ev) => {
     if (typeof ev.data !== "string") {
-      console.error("unexpected message type", typeof ev.data);
+      console.error("Unexpected message type", typeof ev.data);
       return;
     }
+
     try {
       const data = JSON.parse(ev.data);
-      if (["sync", "chat"].includes(data.type)) {
-        chatLog.innerText = data.session.chatLog
-          .map((m) => m.content)
-          .join("\n\n");
-      }
-      console.log(data);
+      handleServerMessage(data);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to parse message:", err);
     }
   };
 }
 
-const joinGame = async (gameId) => {
+function handleServerMessage(data) {
+  switch (data.type) {
+    case "client_ready":
+      logMessage("✅ A player is ready!");
+      break;
+    case "client_unready":
+      logMessage("🔴 A player is not ready!");
+      break;
+
+    case "session_start":
+      logMessage("🚀 Game has started!");
+      break;
+
+    case "client_chat":
+      break;
+
+    case "sync":
+      break;
+
+    case "error":
+      logMessage(`⚠️ Error: ${JSON.stringify(data.error)}`);
+      break;
+
+    default:
+      logMessage(`ℹ️ Unknown message: ${JSON.stringify(data)}`);
+  }
+  updateChatLog(data.session?.chatLog);
+}
+
+async function joinGame(gameId) {
   const response = await fetch(`/game/${gameId}`, {
     method: "POST",
     credentials: "same-origin",
@@ -80,16 +119,11 @@ const joinGame = async (gameId) => {
     window.history.pushState(null, "", url.toString());
     connectToGame(gameId);
   } else {
-    joinGameForm.hidden = false;
-    copyGameIdForm.hidden = true;
-
-    const url = new URL(window.location.href);
-    url.search = "";
-    window.history.pushState(null, "", url.toString());
+    logMessage("❌ Failed to join game");
   }
-};
+}
 
-const createGameSubmitHandler = async (e) => {
+async function createGameSubmitHandler(e) {
   e.preventDefault();
   const response = await fetch("/game", {
     method: "POST",
@@ -98,61 +132,64 @@ const createGameSubmitHandler = async (e) => {
 
   if (response.ok) {
     const data = await response.json();
-    console.log("CREATE GAME RESPONSE", data);
-    // Update UI
-    copyGameIdInput.value = data.id;
-    joinGameForm.hidden = true;
-    copyGameIdForm.hidden = false;
+    logMessage(`🎮 Created game: ${data.id}`);
+    updateUIForConnectedGame(data.id);
 
     const url = new URL(window.location.href);
     url.searchParams.set("game_id", data.id);
     window.history.pushState(null, "", url.toString());
     connectToGame(data.id);
   } else {
-    joinGameForm.hidden = false;
-    copyGameIdForm.hidden = true;
-
-    const url = new URL(window.location.href);
-    url.search = "";
-    window.history.pushState(null, "", url.toString());
+    logMessage("❌ Failed to create game");
   }
-};
+}
 
-const joinGameSubmitHandler = async (e) => {
+async function joinGameSubmitHandler(e) {
   e.preventDefault();
-  const gameId = joinGameInput.value;
+  const gameId = joinGameInput.value.trim();
+  if (!gameId) return;
   joinGame(gameId);
-};
+}
 
-const chatSubmitHandler = async (e) => {
+async function chatSubmitHandler(e) {
   e.preventDefault();
-  const chatMessage = chatInput.value ?? "";
-  if (chatMessage.length < 1) return;
+  const chatMessage = chatInput.value.trim();
+  if (!chatMessage || conn.readyState !== WebSocket.OPEN) return;
 
-  if (conn.readyState === WebSocket.OPEN) {
-    conn.send(
-      JSON.stringify({
-        type: "chat",
-        data: {
-          chat: chatMessage,
-        },
-      }),
-    );
-  }
-};
+  conn.send(
+    JSON.stringify({
+      type: "chat",
+      data: { chat: chatMessage },
+    }),
+  );
 
-const reconnectToGame = async () => {
+  chatInput.value = "";
+}
+
+async function readySubmitHandler(e) {
+  e.preventDefault();
+  if (conn.readyState !== WebSocket.OPEN) return;
+
+  isReady = !isReady;
+  conn.send(
+    JSON.stringify({
+      type: "set_ready",
+      data: { ready: isReady },
+    }),
+  );
+
+  logMessage(isReady ? "🟢 You are ready!" : "🔴 You are not ready.");
+}
+
+async function reconnectToGame() {
   const queryParams = new URLSearchParams(window.location.search);
   const gameId = queryParams.get("game_id");
-  if ([undefined, null, ""].includes(gameId)) {
-    return;
-  }
-
-  joinGame(gameId);
-};
+  if (gameId) joinGame(gameId);
+}
 
 createGameForm.onsubmit = createGameSubmitHandler;
 joinGameForm.onsubmit = joinGameSubmitHandler;
 chatForm.onsubmit = chatSubmitHandler;
+readyForm.onsubmit = readySubmitHandler;
 
 reconnectToGame();
