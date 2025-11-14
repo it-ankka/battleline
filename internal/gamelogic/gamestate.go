@@ -1,12 +1,30 @@
-package gamestate
+package gamelogic
 
 import (
-	. "github.com/it-ankka/battleline/internal/gamelogic"
 	"math/rand/v2"
 )
 
+type TurnPhase int
+
+const (
+	PlacementPhase TurnPhase = iota
+	ClaimPhase
+	DrawPhase
+)
+
+var phaseNames = map[TurnPhase]string{
+	PlacementPhase: "placement",
+	ClaimPhase:     "claim",
+	DrawPhase:      "draw",
+}
+
+func (tp TurnPhase) String() string {
+	return phaseNames[tp]
+}
+
 type GameState struct {
 	ActivePlayer int
+	TurnPhase    TurnPhase
 	DrawDeck     Deck
 	Lanes        GameLanes
 	PlayerHands  [2]Deck
@@ -14,6 +32,7 @@ type GameState struct {
 
 type PrivateGameState struct {
 	ActivePlayer     int       `json:"activePlayer"`
+	TurnPhase        string    `json:"turnPhase"`
 	Lanes            GameLanes `json:"lanes"`
 	PlayerHand       Deck      `json:"playerState"`
 	DrawDeckSize     int       `json:"drawDeckSize"`
