@@ -70,7 +70,7 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 		err := wsjson.Read(ctx, client.Connection, &m)
 		if err != nil {
 			wsjson.Write(ctx, client.Connection, SessionMessage{
-				Error: struct{ message string }{message: "Invalid message format"},
+				Error: &SessionError{Message: "Invalid message format"},
 			})
 			continue
 		}
@@ -82,7 +82,7 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 		case game.messages <- m:
 		default:
 			wsjson.Write(ctx, client.Connection, SessionMessage{
-				Error: struct{ message string }{message: "Session not responding"},
+				Error: &SessionError{Message: "Session not responding"},
 			})
 		}
 	}

@@ -25,12 +25,36 @@ func (deck Deck) Copy() Deck {
 }
 
 func (deck Deck) Pop() (Deck, Card) {
+	if len(deck)-1 < 0 {
+		return deck, Card{}
+	}
 	c := deck[len(deck)-1]
 
 	d := make(Deck, len(deck)-1)
 	copy(d, deck[:len(deck)-1])
 
 	return d, c
+}
+
+func (deck Deck) FindCardIdx(card Card) int {
+	for i, c := range deck {
+		if c.Suit == card.Suit && c.Value == card.Value {
+			return i
+		}
+	}
+	return -1
+}
+
+func (deck Deck) RemoveAt(idx int) Deck {
+	if idx < 0 || idx >= len(deck) {
+		return deck
+	}
+
+	d := make(Deck, 0, len(deck)-1)
+	d = append(d, deck[:idx]...)
+	d = append(d, deck[idx+1:]...)
+
+	return d
 }
 
 func (deck Deck) Shuffle() Deck {

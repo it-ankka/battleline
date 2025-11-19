@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/it-ankka/battleline/internal/gamestate"
+	"github.com/it-ankka/battleline/internal/gamelogic"
 	"github.com/it-ankka/battleline/internal/gameutils"
 )
 
@@ -26,7 +26,7 @@ type GameSession struct {
 	CreatedAt time.Time         `json:"createdAt"`
 	ChatLog   []*ChatMessage    `json:"chatLog"`
 
-	GameState *gamestate.GameState
+	GameState *gamelogic.GameState
 
 	// Channels for communication
 	messages chan ClientMessage
@@ -124,7 +124,7 @@ func (game *GameSession) IsReadyToStart() bool {
 func (game *GameSession) StartGame() {
 	game.mu.Lock()
 	defer game.mu.Unlock()
-	game.GameState = gamestate.NewGameState()
+	game.GameState = gamelogic.NewGameState()
 	game.Status = SessionStatusInProgress
 	game.Broadcast(SessionMessageSessionStart)
 }
