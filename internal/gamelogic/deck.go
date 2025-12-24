@@ -25,12 +25,36 @@ func (deck Deck) Copy() Deck {
 }
 
 func (deck Deck) Pop() (Deck, Card) {
+	if len(deck)-1 < 0 {
+		return deck, Card{}
+	}
 	c := deck[len(deck)-1]
 
 	d := make(Deck, len(deck)-1)
 	copy(d, deck[:len(deck)-1])
 
 	return d, c
+}
+
+func (deck Deck) FindCardIdx(card Card) int {
+	for i, c := range deck {
+		if c.Suit == card.Suit && c.Value == card.Value {
+			return i
+		}
+	}
+	return -1
+}
+
+func (deck Deck) RemoveAt(idx int) Deck {
+	if idx < 0 || idx >= len(deck) {
+		return deck
+	}
+
+	d := make(Deck, 0, len(deck)-1)
+	d = append(d, deck[:idx]...)
+	d = append(d, deck[idx+1:]...)
+
+	return d
 }
 
 func (deck Deck) Shuffle() Deck {
@@ -61,7 +85,7 @@ func (deck Deck) SortByRank() Deck {
 	return d
 }
 
-func CreateStartingDeck() Deck {
+func CreateTroopDeck() Deck {
 	var deck = Deck{}
 	for _, s := range Suits {
 		for i := range 10 {
@@ -72,4 +96,24 @@ func CreateStartingDeck() Deck {
 		}
 	}
 	return deck
+}
+
+// Returns a integer where 100s are the formation value and the sum of the cards is the 10s and 1s
+func (deck Deck) GetBestPossibleTotalValue(bestFormationValue int, possibleCards Deck) int {
+	if len(deck) == MaxCardsPerSide || len(possibleCards) == 0 {
+		return max(deck.GetTotalValue(), bestFormationValue)
+	}
+
+	remainingPossible, nextCard := possibleCards.Pop()
+	formationWithCard := append(deck, nextCard).GetBestPossibleTotalValue(bestFormationValue, remainingPossible)
+	if formationWithCard > bestFormationValue {
+		bestFormationValue = formationWithCard
+	}
+
+	formationWithoutCard := deck.GetBestPossibleTotalValue(bestFormationValue, remainingPossible)
+	if formationWithoutCard > bestFormationValue {
+		bestFormationValue = formationWithoutCard
+	}
+
+	return bestFormationValue
 }

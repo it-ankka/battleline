@@ -11,6 +11,19 @@ const (
 	FormationWedge
 )
 
+var formationName = map[Formation]string{
+	FormationNone:     "None",
+	FormationFray:     "Fray",
+	FormationSkirmish: "Skirmish",
+	FormationColumn:   "Column",
+	FormationSquare:   "Square",
+	FormationWedge:    "Wedge",
+}
+
+func (s Formation) String() string {
+	return formationName[s]
+}
+
 func (d Deck) IsAllSameSuit() bool {
 	suit := d[0].Suit
 	for _, c := range d {
@@ -58,4 +71,12 @@ func (d Deck) GetFormation() Formation {
 		return FormationSkirmish
 	}
 	return FormationFray
+}
+
+func (d Deck) GetTotalValue() int {
+	totalValue := int(d.GetFormation()) * 100
+	for _, card := range d {
+		totalValue += card.Value
+	}
+	return totalValue
 }

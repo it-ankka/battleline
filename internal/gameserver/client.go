@@ -15,6 +15,7 @@ type SessionClient struct {
 	Key        string
 	Connection *websocket.Conn
 	send       chan SessionMessage
+	cancel     context.CancelFunc
 
 	ID        string `json:"playerId"`
 	Index     int    `json:"playerIndex"`
@@ -55,9 +56,16 @@ func (client *SessionClient) ListenToSession(ctx context.Context) {
 	}
 }
 
+func (client *SessionClient) Close() {
+	if client.cancel != nil {
+		client.cancel()
+	}
+}
+
 func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSession) {
 	client.Connection = c
 	ctx, cancel := context.WithCancel(context.Background())
+	client.cancel = cancel
 	defer cancel()
 
 	go client.ListenToSession(ctx)
@@ -69,8 +77,12 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 		var m ClientMessage
 		err := wsjson.Read(ctx, client.Connection, &m)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+
 			wsjson.Write(ctx, client.Connection, SessionMessage{
-				Error: struct{ message string }{message: "Invalid message format"},
+				Error: &SessionError{Message: "Invalid message format"},
 			})
 			continue
 		}
@@ -82,7 +94,7 @@ func (client *SessionClient) HandleConnection(c *websocket.Conn, game *GameSessi
 		case game.messages <- m:
 		default:
 			wsjson.Write(ctx, client.Connection, SessionMessage{
-				Error: struct{ message string }{message: "Session not responding"},
+				Error: &SessionError{Message: "Session not responding"},
 			})
 		}
 	}

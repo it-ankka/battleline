@@ -1,5 +1,6 @@
 const messageLog = document.getElementById("message-log");
 const chatLog = document.getElementById("chat-log");
+const gameStateLog = document.getElementById("game-state-log");
 
 const copyGameIdForm = document.getElementById("copy-game-id-form");
 const createGameForm = document.getElementById("create-game-form");
@@ -13,6 +14,51 @@ const chatInput = document.getElementById("chat-input");
 
 let conn;
 let isReady = false;
+
+window.addEventListener("unload", () => {
+  if (conn.readyState == WebSocket.OPEN) conn.close();
+});
+
+// These are for debugging
+window.placeCard = (suit, value, lane) => {
+  let m = {
+    type: "move",
+    data: {
+      move: {
+        action: "placement",
+        lane: lane,
+        card: { suit: suit, value: value },
+      },
+    },
+  };
+  window.conn.send(JSON.stringify(m));
+};
+
+window.claim = (lane) => {
+  let m = {
+    type: "move",
+    data: {
+      move: {
+        action: "claim",
+        lane: lane,
+      },
+    },
+  };
+  window.conn.send(JSON.stringify(m));
+};
+
+window.drawCard = () => {
+  let m = {
+    type: "move",
+    data: {
+      move: {
+        action: "draw",
+        tacticsDeck: false,
+      },
+    },
+  };
+  window.conn.send(JSON.stringify(m));
+};
 
 function logMessage(msg) {
   messageLog.innerText += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
@@ -38,6 +84,7 @@ function updateUIForConnectedGame(gameId) {
 
 function connectToGame(gameId, maxRetries = 5) {
   conn = new WebSocket(`ws://${location.host}/ws/${gameId}`);
+  window.conn = conn;
 
   conn.onclose = (ev) => {
     logMessage(`❌ Disconnected (code: ${ev.code}, reason: ${ev.reason})`);
@@ -89,6 +136,7 @@ function handleServerMessage(data) {
 
     case "session_start":
       logMessage("🚀 Game has started!");
+      readyForm.hidden = true;
       break;
 
     case "client_chat":
@@ -104,7 +152,9 @@ function handleServerMessage(data) {
     default:
       logMessage(`ℹ️ Unknown message: ${JSON.stringify(data)}`);
   }
+  window.sessionMessage = data;
   updateChatLog(data.session?.chatLog);
+  gameStateLog.innerText = JSON.stringify(data.state, null, 2);
 }
 
 async function joinGame(gameId) {

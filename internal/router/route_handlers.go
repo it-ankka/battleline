@@ -62,6 +62,7 @@ func JoinGameHandler(s *GameServer) http.HandlerFunc {
 		if client != nil {
 			slog.Info("Client rejoined game", slog.String("clientId", clientId))
 			w.WriteHeader(http.StatusNoContent)
+			client.Close()
 			return
 		}
 

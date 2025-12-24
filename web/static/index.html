@@ -14,8 +14,7 @@
       form {
         margin-bottom: 1rem;
       }
-      #message-log,
-      #chat-log {
+      .log {
         background: #f3f3f3;
         padding: 1rem;
         border-radius: 6px;
@@ -51,7 +50,11 @@
         <button
           id="copy-game-id-button"
           type="button"
-          onclick="navigator.clipboard.writeText(document.getElementById('game-id-input').value)"
+          onclick="
+            navigator.clipboard.writeText(
+              document.getElementById('game-id-input').value,
+            )
+          "
         >
           Copy Game ID
         </button>
@@ -62,6 +65,11 @@
       <form id="ready-form" hidden>
         <button id="ready-button" type="submit">I'm Ready!</button>
       </form>
+
+      <form id="move-form" hidden>
+        <button id="confirm-move-button" type="submit">Confirm</button>
+      </form>
+      <hr />
 
       <form id="chat-form" hidden>
         <input
@@ -75,10 +83,13 @@
       </form>
 
       <h3>Messages</h3>
-      <pre id="message-log"></pre>
+      <pre id="message-log" class="log"></pre>
 
       <h3>Chat</h3>
-      <pre id="chat-log"></pre>
+      <pre id="chat-log" class="log"></pre>
+
+      <h3>Gamestate</h3>
+      <pre id="game-state-log" class="log"></pre>
     </div>
 
     <script type="text/javascript" src="/index.js"></script>

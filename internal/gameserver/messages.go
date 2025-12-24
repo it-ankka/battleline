@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket/wsjson"
-	gamestate "github.com/it-ankka/battleline/internal/gamestate"
+	"github.com/it-ankka/battleline/internal/gamelogic"
 )
 
 type SessionMessageType string
@@ -34,18 +34,23 @@ const (
 	SessionMessageClientDisconnect SessionMessageType = "client_disconnect"
 )
 
+type SessionError struct {
+	Message string `json:"message"`
+}
+
 type SessionMessage struct {
 	MessageType SessionMessageType          `json:"type"`
 	Timestamp   time.Time                   `json:"timestamp"`
-	GameState   *gamestate.PrivateGameState `json:"state"`
+	ClientIdx   int                         `json:"clientIdx"`
+	GameState   *gamelogic.PrivateGameState `json:"state"`
 	SessionInfo *GameSessionSnapshot        `json:"session"`
-	Error       any                         `json:"error"`
+	Error       *SessionError               `json:"error"`
 }
 
 type ClientMessageData struct {
-	Move  *any    `json:"move"` //TODO
-	Chat  *string `json:"chat"`
-	Ready *bool   `json:"ready"`
+	Move  *gamelogic.MoveData `json:"move"`
+	Chat  *string             `json:"chat"`
+	Ready *bool               `json:"ready"`
 }
 
 type ClientMessage struct {
@@ -54,40 +59,56 @@ type ClientMessage struct {
 	Data        *ClientMessageData `json:"data"`
 }
 
-// Checks client message vali
-func (m ClientMessage) IsValid() bool {
+func (game *GameSession) IsValidMessage(m ClientMessage) bool {
 	switch m.MessageType {
 	case ClientMessageSetReady:
-		return m.Data != nil && m.Data.Ready != nil
+		return m.Data != nil && m.Data.Ready != nil && game.Status != SessionStatusInProgress && game.Status != SessionStatusEnded
 	case ClientMessageChat:
 		return m.Data != nil && m.Data.Chat != nil && len(*m.Data.Chat) > 0
+	case ClientMessageMove:
+		return m.Data != nil && m.Data.Move != nil &&
+			game.Status == SessionStatusInProgress &&
+			game.GameState.ActivePlayer == m.Client.Index &&
+			game.GameState.IsValidPlayerMove(m.Client.Index, m.Data.Move)
 	default:
 		return false
 	}
 }
 
+func (client *SessionClient) SendSessionMessage(
+	messageType SessionMessageType,
+	game *GameSession,
+	error *SessionError,
+) {
+	if client.Connection == nil {
+		slog.Error("Could not connect to client", slog.String("clientId", client.ID))
+		return
+	}
+
+	message := SessionMessage{MessageType: messageType, Timestamp: time.Now(), ClientIdx: client.Index}
+	if game != nil {
+		message.SessionInfo = game.Snapshot()
+	}
+
+	if game != nil && game.GameState != nil {
+		message.GameState = game.GameState.GetPrivateGameState(client.Index)
+	}
+
+	if error != nil {
+		message.Error = error
+	}
+
+	wsjson.Write(context.Background(), client.Connection, message)
+}
+
 func (game *GameSession) Broadcast(messageType SessionMessageType) {
 	for _, client := range game.Clients {
-		if client == nil {
-			continue
+		if client != nil {
+			client.SendSessionMessage(messageType, game, nil)
 		}
-		if client.Connection == nil {
-			slog.Error("Could not connect to client", slog.String("clientId", client.ID))
-			continue
-		}
-		var privateGameState *gamestate.PrivateGameState = nil
-		if game.GameState != nil {
-			privateGameState = game.GameState.GetPrivateGameState(client.Index)
-		}
-		wsjson.Write(context.Background(), client.Connection, SessionMessage{
-			MessageType: messageType,
-			GameState:   privateGameState,
-			SessionInfo: game.Snapshot(),
-		})
 	}
 }
 
-// TODO
 func (game *GameSession) HandleClientSetReadyMessage(m ClientMessage) {
 
 	game.mu.Lock()
@@ -105,8 +126,12 @@ func (game *GameSession) HandleClientSetReadyMessage(m ClientMessage) {
 	}
 }
 
-// TODO
 func (game *GameSession) HandleClientMoveMessage(m ClientMessage) {
+	game.mu.Lock()
+	defer game.mu.Unlock()
+
+	game.GameState.ExecutePlayerMove(m.Client.Index, m.Data.Move)
+	game.Broadcast(SessionMessageClientMove)
 }
 
 func (game *GameSession) HandleClientChatMessage(m ClientMessage) {
@@ -127,7 +152,7 @@ func (game *GameSession) ProcessClientMessage(m ClientMessage) {
 
 	slog.Info("ClientMessage received", slog.Any("clientMessage", m))
 
-	if !m.IsValid() {
+	if !game.IsValidMessage(m) {
 		slog.Error("Unable to process client message.", slog.String("clientId", m.Client.ID))
 		return
 	}
